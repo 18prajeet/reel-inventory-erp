@@ -4,6 +4,7 @@ import { LayoutShell } from "@/components/layout-shell";
 import { AddReelDialog } from "@/components/add-reel-dialog";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Search, ArrowRight, Package, AlertTriangle, TrendingUp } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
@@ -34,36 +35,36 @@ export default function Dashboard() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="border-l-4 border-l-blue-500 shadow-sm">
+        <Card className="shadow-sm border-slate-200">
           <CardHeader className="pb-2">
             <CardDescription>Total Stock (KG)</CardDescription>
-            <CardTitle className="text-2xl font-mono">{totalStock.toLocaleString()}</CardTitle>
+            <CardTitle className="text-2xl font-mono text-slate-900">{totalStock.toLocaleString()}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center text-xs text-muted-foreground">
-              <Package className="w-4 h-4 mr-1 text-blue-500" /> Across {reels?.length || 0} reel types
+              <Package className="w-4 h-4 mr-1 text-slate-600" /> Across {reels?.length || 0} reel types
             </div>
           </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-amber-500 shadow-sm">
+        <Card className="shadow-sm border-slate-200">
           <CardHeader className="pb-2">
             <CardDescription>Low Stock Alerts</CardDescription>
-            <CardTitle className="text-2xl font-mono">{lowStockCount}</CardTitle>
+            <CardTitle className="text-2xl font-mono text-red-600">{lowStockCount}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center text-xs text-muted-foreground">
-              <AlertTriangle className="w-4 h-4 mr-1 text-amber-500" /> Items below threshold
+              <AlertTriangle className="w-4 h-4 mr-1 text-red-500" /> Items below threshold
             </div>
           </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-emerald-500 shadow-sm">
+        <Card className="shadow-sm border-slate-200">
           <CardHeader className="pb-2">
             <CardDescription>Active Items</CardDescription>
-            <CardTitle className="text-2xl font-mono">{reels?.length || 0}</CardTitle>
+            <CardTitle className="text-2xl font-mono text-slate-900">{reels?.length || 0}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center text-xs text-muted-foreground">
-              <TrendingUp className="w-4 h-4 mr-1 text-emerald-500" /> Inventory Types
+              <TrendingUp className="w-4 h-4 mr-1 text-slate-600" /> Inventory Types
             </div>
           </CardContent>
         </Card>

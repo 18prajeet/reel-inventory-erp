@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useUser } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
+import { useEffect, ComponentType } from "react";
 
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
@@ -12,9 +13,16 @@ import Dashboard from "@/pages/dashboard";
 import ReelDetailPage from "@/pages/reel-detail";
 
 // Wrapper to protect routes
-function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+function ProtectedRoute({ component: Component }: { component: ComponentType }) {
   const { data: user, isLoading } = useUser();
   const [, setLocation] = useLocation();
+
+  // Use effect to handle navigation instead of calling during render
+  useEffect(() => {
+    if (!isLoading && !user) {
+      setLocation("/login");
+    }
+  }, [isLoading, user, setLocation]);
 
   if (isLoading) {
     return (
@@ -25,7 +33,6 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   }
 
   if (!user) {
-    setLocation("/login");
     return null;
   }
 
