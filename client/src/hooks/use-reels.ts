@@ -74,3 +74,72 @@ export function useCreateTransaction() {
     },
   });
 }
+
+export function useDeleteReel() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const url = buildUrl(api.reels.delete.path, { id });
+      const res = await fetch(url, {
+        method: api.reels.delete.method,
+      });
+
+      if (!res.ok) {
+        if (res.status === 400) throw new Error("Cannot delete reel with existing transactions. Delete all transactions first.");
+        if (res.status === 404) throw new Error("Reel not found");
+        throw new Error("Failed to delete reel");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.reels.list.path] });
+    },
+  });
+}
+
+export function useUpdateTransaction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: z.infer<typeof api.transactions.update.input> }) => {
+      const url = buildUrl(api.transactions.update.path, { id });
+      const validated = api.transactions.update.input.parse(data);
+      const res = await fetch(url, {
+        method: api.transactions.update.method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(validated),
+      });
+
+      if (!res.ok) {
+        if (res.status === 400) {
+          const error = await res.json();
+          throw new Error(error.message || "Failed to update transaction");
+        }
+        throw new Error("Failed to update transaction");
+      }
+      return api.transactions.update.responses[200].parse(await res.json());
+    },
+    onSuccess: (_, { data }) => {
+      // Need to infer reelId from context - will be passed separately
+      queryClient.invalidateQueries({ queryKey: [api.reels.list.path] });
+    },
+  });
+}
+
+export function useDeleteTransaction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const url = buildUrl(api.transactions.delete.path, { id });
+      const res = await fetch(url, {
+        method: api.transactions.delete.method,
+      });
+
+      if (!res.ok) {
+        if (res.status === 404) throw new Error("Transaction not found");
+        throw new Error("Failed to delete transaction");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.reels.list.path] });
+    },
+  });
+}

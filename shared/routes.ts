@@ -73,6 +73,15 @@ export const api = {
         400: errorSchemas.validation,
       },
     },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/reels/:id',
+      responses: {
+        200: z.void(),
+        404: errorSchemas.notFound,
+        400: z.object({ message: z.string() }),
+      },
+    },
   },
   transactions: {
     create: {
@@ -82,6 +91,28 @@ export const api = {
       responses: {
         201: z.custom<typeof transactions.$inferSelect>(),
         400: errorSchemas.validation,
+        404: errorSchemas.notFound,
+      },
+    },
+    update: {
+      method: 'PUT' as const,
+      path: '/api/transactions/:id',
+      input: z.object({
+        quantity: z.number().min(0.01),
+        bitReelKg: z.number().min(0).default(0),
+        notes: z.string().optional(),
+      }),
+      responses: {
+        200: z.custom<typeof transactions.$inferSelect>(),
+        400: z.object({ message: z.string() }),
+        404: errorSchemas.notFound,
+      },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/transactions/:id',
+      responses: {
+        200: z.void(),
         404: errorSchemas.notFound,
       },
     },

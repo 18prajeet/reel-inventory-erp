@@ -1,7 +1,13 @@
 import { Link, useLocation } from "wouter";
 import { useUser, useLogout } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Package, LogOut, Menu, UserCircle } from "lucide-react";
+import {
+  LayoutDashboard,
+  Package,
+  LogOut,
+  Menu,
+  UserCircle,
+} from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -16,20 +22,16 @@ export function LayoutShell({ children }: LayoutShellProps) {
   const { mutate: logout } = useLogout();
   const [open, setOpen] = useState(false);
 
-  const navigation = [
-    { name: "Dashboard", href: "/", icon: LayoutDashboard },
-    { name: "Reel Inventory", href: "/reels", icon: Package },
-  ];
+  const navigation = [{ name: "Dashboard", href: "/", icon: LayoutDashboard }];
 
   const NavContent = () => (
     <div className="flex flex-col h-full bg-slate-900 text-white">
       <div className="p-6 border-b border-slate-800">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center font-bold text-white">
-            ERP
-          </div>
           <div>
-            <h1 className="text-lg font-bold tracking-tight">ReelMaster</h1>
+            <h1 className="text-lg font-bold tracking-tight">
+              AARKAY Packaging Industries Pvt Ltd
+            </h1>
             <p className="text-xs text-slate-400">Inventory Management</p>
           </div>
         </div>
@@ -47,7 +49,7 @@ export function LayoutShell({ children }: LayoutShellProps) {
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                 isActive
                   ? "bg-blue-600 text-white shadow-lg shadow-blue-900/20"
-                  : "text-slate-400 hover:text-white hover:bg-slate-800"
+                  : "text-slate-400 hover:text-white hover:bg-slate-800",
               )}
             >
               <item.icon className="w-5 h-5" />
@@ -61,8 +63,9 @@ export function LayoutShell({ children }: LayoutShellProps) {
         <div className="flex items-center gap-3 px-3 py-3 mb-2 rounded-lg bg-slate-800/50">
           <UserCircle className="w-8 h-8 text-slate-400" />
           <div className="overflow-hidden">
-            <p className="text-sm font-medium text-white truncate">{user?.username}</p>
-            <p className="text-xs text-slate-500">Administrator</p>
+            <p className="text-sm font-medium text-white truncate">
+              {user?.username}
+            </p>
           </div>
         </div>
         <button
@@ -85,10 +88,14 @@ export function LayoutShell({ children }: LayoutShellProps) {
 
       {/* Mobile Header */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-slate-900 text-white p-4 flex items-center justify-between shadow-md">
-        <span className="font-bold">ReelMaster ERP</span>
+        <span className="font-bold">AARKAY Packaging Industries</span>
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="text-white hover:bg-slate-800">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-slate-800"
+            >
               <Menu className="w-6 h-6" />
             </Button>
           </SheetTrigger>

@@ -52,6 +52,24 @@ export async function registerRoutes(
     }
   });
 
+  app.delete(api.reels.delete.path, requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const reel = await storage.getReel(id);
+      if (!reel) {
+        return res.status(404).json({ message: "Reel not found" });
+      }
+
+      await storage.deleteReel(id);
+      res.status(200).send("");
+    } catch (err) {
+      if (err instanceof Error) {
+        return res.status(400).json({ message: err.message });
+      }
+      throw err;
+    }
+  });
+
   // === Transactions Routes ===
   app.post(api.transactions.create.path, requireAuth, async (req, res) => {
     try {
@@ -82,6 +100,78 @@ export async function registerRoutes(
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.errors[0].message });
       }
+      throw err;
+    }
+  });
+
+  // === Update Transaction ===
+  app.put(api.transactions.update.path, requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const input = api.transactions.update.input.parse(req.body);
+
+      // Get current transaction to verify it exists and get reel info
+      const currentTxs = await db.select().from(transactions).where(eq(transactions.id, id));
+      if (currentTxs.length === 0) {
+        return res.status(404).json({ message: "Transaction not found" });
+      }
+      const currentTx = currentTxs[0];
+
+      // For usage transactions, validate stock constraint
+      if (currentTx.type === 'usage') {
+        const reel = await storage.getReel(currentTx.reelId);
+        if (!reel) {
+          return res.status(404).json({ message: "Reel not found" });
+        }
+
+        const bitReelKg = input.bitReelKg || 0;
+        const totalDeduction = input.quantity + bitReelKg;
+
+        // Calculate stock excluding this transaction
+        let stockWithoutThis = 0;
+        for (const tx of reel.transactions) {
+          if (tx.id === id) continue; // Skip current transaction
+          if (tx.type === 'inward' || tx.type === 'opening') {
+            stockWithoutThis += tx.quantity;
+          } else if (tx.type === 'usage') {
+            stockWithoutThis -= tx.quantity;
+            if (tx.bitReelKg) {
+              stockWithoutThis += tx.bitReelKg;
+            }
+          }
+        }
+
+        if (stockWithoutThis < totalDeduction) {
+          return res.status(400).json({
+            message: `Insufficient stock after removing this transaction. Available: ${stockWithoutThis.toFixed(2)} KG, Requested: ${totalDeduction.toFixed(2)} KG`,
+          });
+        }
+      }
+
+      const tx = await storage.updateTransaction(id, input);
+      res.status(200).json(tx);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  // === Delete Transaction ===
+  app.delete(api.transactions.delete.path, requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      // Check if transaction exists
+      const txs = await db.select().from(transactions).where(eq(transactions.id, id));
+      if (txs.length === 0) {
+        return res.status(404).json({ message: "Transaction not found" });
+      }
+
+      await storage.deleteTransaction(id);
+      res.status(200).send("");
+    } catch (err) {
       throw err;
     }
   });

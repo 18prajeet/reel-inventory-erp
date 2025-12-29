@@ -13,7 +13,11 @@ import Dashboard from "@/pages/dashboard";
 import ReelDetailPage from "@/pages/reel-detail";
 
 // Wrapper to protect routes
-function ProtectedRoute({ component: Component }: { component: ComponentType }) {
+function ProtectedRoute({
+  component: Component,
+}: {
+  component: ComponentType;
+}) {
   const { data: user, isLoading } = useUser();
   const [, setLocation] = useLocation();
 
@@ -43,18 +47,18 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={LoginPage} />
-      
+
       {/* Protected Routes */}
       <Route path="/">
         <ProtectedRoute component={Dashboard} />
       </Route>
-      <Route path="/reels">
+      {/* <Route path="/reels">
         <ProtectedRoute component={Dashboard} />
-      </Route>
+      </Route> */}
       <Route path="/reels/:id">
         <ProtectedRoute component={ReelDetailPage} />
       </Route>
-      
+
       {/* Fallback */}
       <Route component={NotFound} />
     </Switch>

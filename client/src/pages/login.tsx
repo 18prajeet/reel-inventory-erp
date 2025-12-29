@@ -4,7 +4,13 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "@shared/routes";
 import { useLocation } from "wouter";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,11 +59,12 @@ export default function LoginPage() {
         <div className="absolute inset-0 bg-blue-600/10 z-0" />
         <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-3xl" />
-        
+
         <div className="relative z-10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-500 flex items-center justify-center font-bold text-xl">ERP</div>
-            <span className="text-xl font-bold tracking-tight">ReelMaster</span>
+            <span className="text-xl font-bold tracking-tight">
+              AARKAY Packaging Industries Pvt Ltd
+            </span>
           </div>
         </div>
 
@@ -67,12 +74,13 @@ export default function LoginPage() {
             precision and control.
           </h1>
           <p className="text-slate-400 text-lg max-w-md">
-            Complete tracking for reel stock, usage history, and material requirements planning in one unified system.
+            Complete tracking for reel stock, usage history, and material
+            requirements planning in one unified system.
           </p>
         </div>
 
         <div className="relative z-10 text-sm text-slate-500">
-          © 2024 ReelMaster ERP System. All rights reserved.
+          © 2026 Inventoy ERP System. All rights reserved.
         </div>
       </div>
 
@@ -80,10 +88,10 @@ export default function LoginPage() {
       <div className="flex-1 flex items-center justify-center p-8">
         <Card className="w-full max-w-md shadow-2xl border-none bg-white/80 backdrop-blur-sm">
           <CardHeader className="space-y-1 pb-8">
-            <CardTitle className="text-2xl font-bold tracking-tight">Sign in</CardTitle>
-            <CardDescription>
-              Enter your credentials to access the system
-            </CardDescription>
+            <CardTitle className="text-2xl font-bold tracking-tight">
+              Sign in
+            </CardTitle>
+            <CardDescription>Enter credentials</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -91,12 +99,13 @@ export default function LoginPage() {
                 <Label htmlFor="username">Username</Label>
                 <Input
                   id="username"
-                  placeholder="admin"
                   {...form.register("username")}
                   className="bg-slate-50 border-slate-200 focus:bg-white transition-colors"
                 />
                 {form.formState.errors.username && (
-                  <p className="text-xs text-destructive">{form.formState.errors.username.message}</p>
+                  <p className="text-xs text-destructive">
+                    {form.formState.errors.username.message}
+                  </p>
                 )}
               </div>
               <div className="space-y-2">
@@ -110,17 +119,23 @@ export default function LoginPage() {
                   className="bg-slate-50 border-slate-200 focus:bg-white transition-colors"
                 />
                 {form.formState.errors.password && (
-                  <p className="text-xs text-destructive">{form.formState.errors.password.message}</p>
+                  <p className="text-xs text-destructive">
+                    {form.formState.errors.password.message}
+                  </p>
                 )}
               </div>
-              
+
               {form.formState.errors.root && (
                 <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium">
                   {form.formState.errors.root.message}
                 </div>
               )}
 
-              <Button type="submit" className="w-full h-11 text-base shadow-lg shadow-primary/20" disabled={isPending}>
+              <Button
+                type="submit"
+                className="w-full h-11 text-base shadow-lg shadow-primary/20"
+                disabled={isPending}
+              >
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Sign In
               </Button>

@@ -18,9 +18,12 @@ export interface IStorage {
   getReels(): Promise<ReelWithStock[]>;
   getReel(id: number): Promise<(ReelWithStock & { transactions: Transaction[] }) | undefined>;
   createReel(reel: InsertReel): Promise<Reel>;
+  deleteReel(id: number): Promise<void>;
   
   // Transactions
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
+  updateTransaction(id: number, transaction: Partial<InsertTransaction>): Promise<Transaction>;
+  deleteTransaction(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -106,6 +109,28 @@ export class DatabaseStorage implements IStorage {
   async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
     const [tx] = await db.insert(transactions).values(transaction).returning();
     return tx;
+  }
+
+  async deleteReel(id: number): Promise<void> {
+    // Check if reel has any transactions
+    const txs = await db.select().from(transactions).where(eq(transactions.reelId, id));
+    if (txs.length > 0) {
+      throw new Error("Cannot delete reel with existing transactions. Delete all transactions first.");
+    }
+    
+    await db.delete(reels).where(eq(reels.id, id));
+  }
+
+  async updateTransaction(id: number, updates: Partial<InsertTransaction>): Promise<Transaction> {
+    const [tx] = await db.update(transactions)
+      .set(updates)
+      .where(eq(transactions.id, id))
+      .returning();
+    return tx;
+  }
+
+  async deleteTransaction(id: number): Promise<void> {
+    await db.delete(transactions).where(eq(transactions.id, id));
   }
 }
 
