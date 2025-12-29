@@ -1,38 +1,104 @@
-import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
-
-// modify the interface with any CRUD methods
-// you might need
+import { db } from "./db";
+import { 
+  reels, transactions, users,
+  type Reel, type InsertReel, 
+  type Transaction, type InsertTransaction,
+  type User, type InsertUser,
+  type ReelWithStock
+} from "@shared/schema";
+import { eq, sql, desc } from "drizzle-orm";
 
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
+  // User
+  getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+
+  // Reels
+  getReels(): Promise<ReelWithStock[]>;
+  getReel(id: number): Promise<(ReelWithStock & { transactions: Transaction[] }) | undefined>;
+  createReel(reel: InsertReel): Promise<Reel>;
+  
+  // Transactions
+  createTransaction(transaction: InsertTransaction): Promise<Transaction>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-
-  constructor() {
-    this.users = new Map();
-  }
-
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+export class DatabaseStorage implements IStorage {
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+  async createUser(user: InsertUser): Promise<User> {
+    const [newUser] = await db.insert(users).values(user).returning();
+    return newUser;
+  }
+
+  async getReels(): Promise<ReelWithStock[]> {
+    // We need to calculate stock for each reel
+    // Stock = (Opening + Inward) - Usage
+    const allReels = await db.select().from(reels);
+    
+    // In a real large-scale app, we might want to cache this or use a view
+    const reelsWithStock = await Promise.all(allReels.map(async (reel) => {
+      const txs = await db.select().from(transactions).where(eq(transactions.reelId, reel.id));
+      
+      let stock = 0;
+      for (const tx of txs) {
+        if (tx.type === 'inward' || tx.type === 'opening') {
+          stock += tx.quantity;
+        } else if (tx.type === 'usage') {
+          stock -= tx.quantity;
+        }
+      }
+      
+      return { ...reel, currentStock: stock };
+    }));
+
+    return reelsWithStock;
+  }
+
+  async getReel(id: number): Promise<(ReelWithStock & { transactions: Transaction[] }) | undefined> {
+    const [reel] = await db.select().from(reels).where(eq(reels.id, id));
+    if (!reel) return undefined;
+
+    const txs = await db.select()
+      .from(transactions)
+      .where(eq(transactions.reelId, id))
+      .orderBy(desc(transactions.date));
+
+    let stock = 0;
+    for (const tx of txs) {
+      if (tx.type === 'inward' || tx.type === 'opening') {
+        stock += tx.quantity;
+      } else if (tx.type === 'usage') {
+        stock -= tx.quantity;
+      }
+    }
+
+    return { ...reel, currentStock: stock, transactions: txs };
+  }
+
+  async createReel(insertReel: InsertReel): Promise<Reel> {
+    // Generate Unique Code: SIZE-GSM-SHADE
+    const code = `${insertReel.size}-${insertReel.gsm}-${insertReel.shade.toUpperCase()}`;
+    
+    const [reel] = await db.insert(reels).values({
+      ...insertReel,
+      code,
+    }).returning();
+    return reel;
+  }
+
+  async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
+    const [tx] = await db.insert(transactions).values(transaction).returning();
+    return tx;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
