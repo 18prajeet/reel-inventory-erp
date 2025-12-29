@@ -65,8 +65,14 @@ export async function registerRoutes(
 
       // Validation: Prevent negative stock
       if (input.type === 'usage') {
-        if (reel.currentStock < input.quantity) {
-           return res.status(400).json({ message: "Insufficient stock for this usage." });
+        const bitReelKg = input.bitReelKg || 0;
+        const totalDeduction = input.quantity + bitReelKg;
+        
+        // Validation: usageKg + bitReelKg must not exceed available stock
+        if (reel.currentStock < totalDeduction) {
+           return res.status(400).json({ 
+             message: `Insufficient stock. Available: ${reel.currentStock.toFixed(2)} KG, Requested: ${totalDeduction.toFixed(2)} KG (Usage: ${input.quantity.toFixed(2)} + Bit Reel: ${bitReelKg.toFixed(2)} KG).` 
+           });
         }
       }
 

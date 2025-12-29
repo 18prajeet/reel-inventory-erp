@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 
 const formSchema = insertTransactionSchema.extend({
   quantity: z.coerce.number().min(0.01, "Quantity must be positive"),
+  bitReelKg: z.coerce.number().min(0, "Bit reel weight must be non-negative").default(0),
   reelId: z.coerce.number(),
 });
 
@@ -40,6 +41,7 @@ export function TransactionDialog({ reelId, reelCode, type }: TransactionDialogP
       type: type,
       reelId: reelId,
       quantity: undefined,
+      bitReelKg: 0,
       notes: "",
     },
   });
@@ -52,6 +54,7 @@ export function TransactionDialog({ reelId, reelCode, type }: TransactionDialogP
           type: type,
           reelId: reelId,
           quantity: undefined,
+          bitReelKg: 0,
           notes: "",
         });
         toast({
@@ -100,7 +103,9 @@ export function TransactionDialog({ reelId, reelCode, type }: TransactionDialogP
           <input type="hidden" {...form.register("type")} value={type} />
           
           <div className="space-y-2">
-            <Label htmlFor="quantity">Quantity (KG)</Label>
+            <Label htmlFor="quantity">
+              {isUsage ? "Usage (KG)" : "Quantity (KG)"}
+            </Label>
             <div className="relative">
               <Input
                 id="quantity"
@@ -119,6 +124,29 @@ export function TransactionDialog({ reelId, reelCode, type }: TransactionDialogP
               <p className="text-xs text-destructive">{form.formState.errors.quantity.message}</p>
             )}
           </div>
+
+          {isUsage && (
+            <div className="space-y-2">
+              <Label htmlFor="bitReel">Bit Reel (KG)</Label>
+              <div className="relative">
+                <Input
+                  id="bitReel"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  className="pr-12 font-mono text-base"
+                  {...form.register("bitReelKg")}
+                />
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-muted-foreground text-sm font-medium">
+                  KG
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">Leftover reel weight carried to next day</p>
+              {form.formState.errors.bitReelKg && (
+                <p className="text-xs text-destructive">{form.formState.errors.bitReelKg.message}</p>
+              )}
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="notes">Notes / Reference</Label>

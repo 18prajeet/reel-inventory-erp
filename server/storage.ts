@@ -41,7 +41,7 @@ export class DatabaseStorage implements IStorage {
 
   async getReels(): Promise<ReelWithStock[]> {
     // We need to calculate stock for each reel
-    // Stock = (Opening + Inward) - Usage
+    // Stock = (Opening + Inward) - Usage + Bit Reel
     const allReels = await db.select().from(reels);
     
     // In a real large-scale app, we might want to cache this or use a view
@@ -54,6 +54,10 @@ export class DatabaseStorage implements IStorage {
           stock += tx.quantity;
         } else if (tx.type === 'usage') {
           stock -= tx.quantity;
+          // Add back bit reel weight (carried forward to next day)
+          if (tx.bitReelKg) {
+            stock += tx.bitReelKg;
+          }
         }
       }
       
@@ -78,6 +82,10 @@ export class DatabaseStorage implements IStorage {
         stock += tx.quantity;
       } else if (tx.type === 'usage') {
         stock -= tx.quantity;
+        // Add back bit reel weight (carried forward to next day)
+        if (tx.bitReelKg) {
+          stock += tx.bitReelKg;
+        }
       }
     }
 

@@ -25,6 +25,7 @@ export const transactions = pgTable("transactions", {
   reelId: integer("reel_id").notNull().references(() => reels.id),
   type: text("type", { enum: ["inward", "usage", "opening"] }).notNull(),
   quantity: doublePrecision("quantity").notNull(), // In KG
+  bitReelKg: doublePrecision("bit_reel_kg").default(0), // Leftover reel weight (KG) - for usage only
   date: timestamp("date").defaultNow(),
   notes: text("notes"),
 });
@@ -54,6 +55,8 @@ export const insertReelSchema = createInsertSchema(reels).omit({
 export const insertTransactionSchema = createInsertSchema(transactions).omit({
   id: true,
   date: true,
+}).extend({
+  bitReelKg: z.number().min(0, "Bit reel weight must be non-negative").default(0),
 });
 
 export type User = typeof users.$inferSelect;
