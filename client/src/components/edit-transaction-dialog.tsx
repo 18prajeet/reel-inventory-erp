@@ -51,7 +51,7 @@ export function EditTransactionDialog({
 
   const onSubmit = (data: FormValues) => {
     mutate(
-      { id: transaction.id, data },
+      { id: transaction.id, data, reelId },
       {
         onSuccess: () => {
           onOpenChange(false);

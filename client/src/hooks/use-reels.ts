@@ -99,7 +99,7 @@ export function useDeleteReel() {
 export function useUpdateTransaction() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: z.infer<typeof api.transactions.update.input> }) => {
+    mutationFn: async ({ id, data, reelId }: { id: number; data: z.infer<typeof api.transactions.update.input>; reelId: number }) => {
       const url = buildUrl(api.transactions.update.path, { id });
       const validated = api.transactions.update.input.parse(data);
       const res = await fetch(url, {
@@ -117,8 +117,8 @@ export function useUpdateTransaction() {
       }
       return api.transactions.update.responses[200].parse(await res.json());
     },
-    onSuccess: (_, { data }) => {
-      // Need to infer reelId from context - will be passed separately
+    onSuccess: (_, { reelId }) => {
+      queryClient.invalidateQueries({ queryKey: [api.reels.get.path, reelId] });
       queryClient.invalidateQueries({ queryKey: [api.reels.list.path] });
     },
   });
@@ -127,7 +127,7 @@ export function useUpdateTransaction() {
 export function useDeleteTransaction() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (id: number) => {
+    mutationFn: async ({ id, reelId }: { id: number; reelId: number }) => {
       const url = buildUrl(api.transactions.delete.path, { id });
       const res = await fetch(url, {
         method: api.transactions.delete.method,
@@ -138,7 +138,8 @@ export function useDeleteTransaction() {
         throw new Error("Failed to delete transaction");
       }
     },
-    onSuccess: () => {
+    onSuccess: (_, { reelId }) => {
+      queryClient.invalidateQueries({ queryKey: [api.reels.get.path, reelId] });
       queryClient.invalidateQueries({ queryKey: [api.reels.list.path] });
     },
   });

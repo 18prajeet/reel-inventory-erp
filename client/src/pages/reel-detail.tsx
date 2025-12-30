@@ -37,21 +37,24 @@ export default function ReelDetailPage() {
     );
     if (!confirmed) return;
 
-    deleteTransaction(txId, {
-      onSuccess: () => {
-        toast({
-          title: "Transaction Deleted",
-          description: "Successfully deleted transaction",
-        });
-      },
-      onError: (error) => {
-        toast({
-          title: "Error",
-          description: error.message || "Failed to delete transaction",
-          variant: "destructive",
-        });
-      },
-    });
+    deleteTransaction(
+      { id: txId, reelId: id },
+      {
+        onSuccess: () => {
+          toast({
+            title: "Transaction Deleted",
+            description: "Successfully deleted transaction",
+          });
+        },
+        onError: (error) => {
+          toast({
+            title: "Error",
+            description: error.message || "Failed to delete transaction",
+            variant: "destructive",
+          });
+        },
+      }
+    );
   };
 
   const handleEditTransaction = (tx: Transaction) => {
