@@ -18,6 +18,7 @@ export interface IStorage {
   getReels(): Promise<ReelWithStock[]>;
   getReel(id: number): Promise<(ReelWithStock & { transactions: Transaction[] }) | undefined>;
   createReel(reel: InsertReel): Promise<Reel>;
+  updateReel(id: number, reel: { size: number; gsm: number; shade: string }): Promise<Reel>;
   deleteReel(id: number): Promise<void>;
   
   // Transactions
@@ -104,6 +105,20 @@ export class DatabaseStorage implements IStorage {
       ...insertReel,
       code,
     }).returning();
+    return reel;
+  }
+
+  async updateReel(id: number, updates: { size: number; gsm: number; shade: string }): Promise<Reel> {
+    // Generate new code: SIZE-GSM-SHADE
+    const newCode = `${updates.size}-${updates.gsm}-${updates.shade.toUpperCase()}`;
+    
+    const [reel] = await db.update(reels)
+      .set({
+        ...updates,
+        code: newCode,
+      })
+      .where(eq(reels.id, id))
+      .returning();
     return reel;
   }
 

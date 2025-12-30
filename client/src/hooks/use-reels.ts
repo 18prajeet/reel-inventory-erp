@@ -75,6 +75,33 @@ export function useCreateTransaction() {
   });
 }
 
+export function useUpdateReel() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: z.infer<typeof api.reels.update.input> }) => {
+      const url = buildUrl(api.reels.update.path, { id });
+      const validated = api.reels.update.input.parse(data);
+      const res = await fetch(url, {
+        method: api.reels.update.method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(validated),
+      });
+
+      if (!res.ok) {
+        if (res.status === 409) throw new Error("A reel with this Size, GSM, and Shade already exists.");
+        if (res.status === 400) throw new Error("Invalid input data.");
+        if (res.status === 404) throw new Error("Reel not found");
+        throw new Error("Failed to update reel");
+      }
+      return api.reels.update.responses[200].parse(await res.json());
+    },
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: [api.reels.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.reels.get.path, id] });
+    },
+  });
+}
+
 export function useDeleteReel() {
   const queryClient = useQueryClient();
   return useMutation({

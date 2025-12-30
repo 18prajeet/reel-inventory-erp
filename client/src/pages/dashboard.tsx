@@ -2,6 +2,7 @@ import { useReels, useDeleteReel } from "@/hooks/use-reels";
 import { useUser } from "@/hooks/use-auth";
 import { LayoutShell } from "@/components/layout-shell";
 import { AddReelDialog } from "@/components/add-reel-dialog";
+import { EditReelDialog } from "@/components/edit-reel-dialog";
 import {
   Card,
   CardContent,
@@ -18,18 +19,27 @@ import {
   AlertTriangle,
   TrendingUp,
   Trash2,
+  Edit2,
 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { Reel } from "@shared/schema";
 
 export default function Dashboard() {
   const { data: reels, isLoading } = useReels();
   const [search, setSearch] = useState("");
+  const [editingReel, setEditingReel] = useState<Reel | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const { mutate: deleteReel, isPending: isDeleting } = useDeleteReel();
   const { toast } = useToast();
+
+  const handleEditReel = (reel: Reel) => {
+    setEditingReel(reel);
+    setEditDialogOpen(true);
+  };
 
   const handleDeleteReel = (reelId: number, reelCode: string) => {
     const confirmed = window.confirm(
@@ -211,6 +221,7 @@ export default function Dashboard() {
                             size="sm"
                             variant="ghost"
                             className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600"
+                            data-testid="button-view-reel"
                           >
                             <ArrowRight className="h-4 w-4" />
                           </Button>
@@ -218,9 +229,19 @@ export default function Dashboard() {
                         <Button
                           size="sm"
                           variant="ghost"
+                          className="h-8 w-8 p-0 hover:bg-amber-50 hover:text-amber-600"
+                          onClick={() => handleEditReel(reel)}
+                          data-testid="button-edit-reel"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
                           className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600"
                           onClick={() => handleDeleteReel(reel.id, reel.code)}
                           disabled={isDeleting}
+                          data-testid="button-delete-reel"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -233,6 +254,14 @@ export default function Dashboard() {
           </table>
         </div>
       </Card>
+
+      {editingReel && (
+        <EditReelDialog
+          reel={editingReel}
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+        />
+      )}
     </LayoutShell>
   );
 }

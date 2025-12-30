@@ -73,6 +73,21 @@ export const api = {
         400: errorSchemas.validation,
       },
     },
+    update: {
+      method: 'PUT' as const,
+      path: '/api/reels/:id',
+      input: z.object({
+        size: z.number().int().positive("Size must be a positive number"),
+        gsm: z.number().int().positive("GSM must be a positive number"),
+        shade: z.string().min(1, "Shade is required"),
+      }),
+      responses: {
+        200: z.custom<typeof reels.$inferSelect>(),
+        400: z.object({ message: z.string() }),
+        404: errorSchemas.notFound,
+        409: errorSchemas.conflict,
+      },
+    },
     delete: {
       method: 'DELETE' as const,
       path: '/api/reels/:id',

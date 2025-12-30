@@ -52,6 +52,33 @@ export async function registerRoutes(
     }
   });
 
+  app.put(api.reels.update.path, requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const input = api.reels.update.input.parse(req.body);
+
+      const reel = await storage.getReel(id);
+      if (!reel) {
+        return res.status(404).json({ message: "Reel not found" });
+      }
+
+      const updatedReel = await storage.updateReel(id, input);
+      res.status(200).json(updatedReel);
+    } catch (err) {
+      // Check for duplicate key error (Postgres error code 23505)
+      if (err instanceof Error && 'code' in err && err.code === '23505') {
+        return res.status(409).json({ message: "A reel with this Size, GSM, and Shade already exists." });
+      }
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      if (err instanceof Error) {
+        return res.status(400).json({ message: err.message });
+      }
+      throw err;
+    }
+  });
+
   app.delete(api.reels.delete.path, requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
