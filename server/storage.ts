@@ -21,6 +21,7 @@ export interface IStorage {
   deleteReel(id: number): Promise<void>;
   
   // Transactions
+  getTransaction(id: number): Promise<Transaction | undefined>;
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
   updateTransaction(id: number, transaction: Partial<InsertTransaction>): Promise<Transaction>;
   deleteTransaction(id: number): Promise<void>;
@@ -104,6 +105,11 @@ export class DatabaseStorage implements IStorage {
       code,
     }).returning();
     return reel;
+  }
+
+  async getTransaction(id: number): Promise<Transaction | undefined> {
+    const [tx] = await db.select().from(transactions).where(eq(transactions.id, id));
+    return tx;
   }
 
   async createTransaction(transaction: InsertTransaction): Promise<Transaction> {

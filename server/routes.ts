@@ -110,12 +110,11 @@ export async function registerRoutes(
       const id = parseInt(req.params.id);
       const input = api.transactions.update.input.parse(req.body);
 
-      // Get current transaction to verify it exists and get reel info
-      const currentTxs = await db.select().from(transactions).where(eq(transactions.id, id));
-      if (currentTxs.length === 0) {
+      // Get current transaction to verify it exists
+      const currentTx = await storage.getTransaction(id);
+      if (!currentTx) {
         return res.status(404).json({ message: "Transaction not found" });
       }
-      const currentTx = currentTxs[0];
 
       // For usage transactions, validate stock constraint
       if (currentTx.type === 'usage') {
@@ -164,8 +163,8 @@ export async function registerRoutes(
       const id = parseInt(req.params.id);
       
       // Check if transaction exists
-      const txs = await db.select().from(transactions).where(eq(transactions.id, id));
-      if (txs.length === 0) {
+      const tx = await storage.getTransaction(id);
+      if (!tx) {
         return res.status(404).json({ message: "Transaction not found" });
       }
 
