@@ -146,14 +146,14 @@ export default function LoginPage() {
                 Sign In
               </Button>
 
-              <div className="text-right">
+              {/* <div className="text-right">
                 <a
                   href="/forgot-password"
                   className="text-sm text-slate-600 hover:underline"
                  >
                      Forgot password?
               </a>
-             </div>
+             </div> */}
 
             </form>
           </CardContent>
