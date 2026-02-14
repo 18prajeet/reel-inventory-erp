@@ -11,6 +11,10 @@ import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
 import ReelDetailPage from "@/pages/reel-detail";
+import GsmReelsPage from "@/pages/gsm-reels";
+import ForgotPassword from "./pages/forgotPassword";
+import ResetPassword from "./pages/resetPassword";
+
 
 // Wrapper to protect routes
 function ProtectedRoute({
@@ -47,6 +51,9 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={LoginPage} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/reset-password" component={ResetPassword} />
+
 
       {/* Protected Routes */}
       <Route path="/">
@@ -58,6 +65,9 @@ function Router() {
       <Route path="/reels/:id">
         <ProtectedRoute component={ReelDetailPage} />
       </Route>
+
+      <Route path="/reels/gsm/:gsm" component={GsmReelsPage} />
+
 
       {/* Fallback */}
       <Route component={NotFound} />

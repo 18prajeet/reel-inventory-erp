@@ -63,6 +63,18 @@ export const api = {
         404: errorSchemas.notFound,
       },
     },
+     updateBitReel: {
+       path: "/api/reels/:id/bit-reel",
+       method: "PUT" as const,
+       input: z.object({
+      bitReelKg: z.number().min(0),
+    }),
+     responses: {
+      200: z.custom<typeof reels.$inferSelect>(),
+      400: z.object({ message: z.string() }),
+      404: z.object({ message: z.string() }),
+    },
+  },
     create: {
       method: 'POST' as const,
       path: '/api/reels',
@@ -73,14 +85,19 @@ export const api = {
         400: errorSchemas.validation,
       },
     },
-    update: {
+      update: {
       method: 'PUT' as const,
       path: '/api/reels/:id',
       input: z.object({
-        size: z.number().int().positive("Size must be a positive number"),
-        gsm: z.number().int().positive("GSM must be a positive number"),
-        shade: z.string().min(1, "Shade is required"),
-      }),
+      size: z.number().int().positive("Size must be a positive number"),
+      gsm: z.number().int().positive("GSM must be a positive number"),
+      shade: z.string().min(1, "Shade is required"),
+      bf: z.coerce.number().int().positive().optional(),    // NEW
+      supplier: z.string().min(1).optional(),  // NEW
+      weightKg: z.number(),  
+
+  }),
+
       responses: {
         200: z.custom<typeof reels.$inferSelect>(),
         400: z.object({ message: z.string() }),

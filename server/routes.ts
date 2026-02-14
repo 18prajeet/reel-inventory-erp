@@ -4,24 +4,96 @@ import { setupAuth, hashPassword } from "./auth";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
+import { randomBytes } from "crypto";
+import { sendResetEmail } from "./mailer";
+
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // Setup Passport Auth
   setupAuth(app);
 
-  // === Auth Middleware ===
   const requireAuth = (req: any, res: any, next: any) => {
-    if (req.isAuthenticated()) {
-      return next();
-    }
+    if (req.isAuthenticated()) return next();
     res.status(401).send("Unauthorized");
   };
+  app.post("/api/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body;
 
-  // === Reels Routes ===
-  app.get(api.reels.list.path, requireAuth, async (req, res) => {
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const user = await storage.getUserByEmail(email);
+
+    // 🔐 Do NOT reveal if email exists or not
+    if (!user) {
+      return res.json({
+        message: "If the email exists, a reset link will be sent",
+      });
+    }
+
+    const token = randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+
+    await storage.setPasswordResetToken(user.id, token, expiresAt);
+
+    // 📧 Email sending will come later
+    // console.log("Password reset token:", token);
+    await sendResetEmail(user.email, token);
+
+    return res.json({
+      message: "If the email exists, a reset link will be sent",
+    });
+  } catch (err) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+app.post("/api/reset-password", async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({
+        message: "Token and new password are required",
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        message: "Password must be at least 6 characters",
+      });
+    }
+
+    const hashedPassword = await hashPassword(newPassword);
+
+    const user = await storage.resetPasswordWithToken(
+      token,
+      hashedPassword
+    );
+
+    if (!user) {
+      return res.status(400).json({
+        message: "Invalid or expired token",
+      });
+    }
+
+    return res.json({
+      message: "Password reset successful",
+    });
+  } catch (err) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+
+
+  /* ===================== REELS ===================== */
+
+  app.get(api.reels.list.path, requireAuth, async (_req, res) => {
     const reels = await storage.getReels();
     res.json(reels);
   });
@@ -35,22 +107,31 @@ export async function registerRoutes(
     res.json(reel);
   });
 
+  /* 🔒 PATCHED CREATE REEL */
   app.post(api.reels.create.path, requireAuth, async (req, res) => {
     try {
       const input = api.reels.create.input.parse(req.body);
       const reel = await storage.createReel(input);
-      res.status(201).json(reel);
-    } catch (err) {
-      // Check for duplicate key error (Postgres error code 23505)
-      if (err instanceof Error && 'code' in err && err.code === '23505') {
-         return res.status(409).json({ message: "A reel with this Size, GSM, and Shade already exists." });
-      }
-      if (err instanceof z.ZodError) {
-        return res.status(400).json({ message: err.errors[0].message });
-      }
-      throw err;
-    }
+      return res.status(201).json(reel);
+    } catch (err: any) {
+        if (err instanceof z.ZodError) {
+          return res.status(400).json({ message: err.errors[0].message });
+       }
+  if (err?.code === "23505") {
+    return res.status(409).json({
+      message: "A reel with this Reel ID already exists.",
+    });
+  }
+
+  if (err instanceof Error) {
+    return res.status(400).json({ message: err.message });
+  }
+
+  return res.status(500).json({ message: "Internal server error" });
+}
+
   });
+
 
   app.put(api.reels.update.path, requireAuth, async (req, res) => {
     try {
@@ -62,20 +143,16 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Reel not found" });
       }
 
-      const updatedReel = await storage.updateReel(id, input);
-      res.status(200).json(updatedReel);
+      const updated = await storage.updateReel(id, input);
+      res.status(200).json(updated);
     } catch (err) {
-      // Check for duplicate key error (Postgres error code 23505)
-      if (err instanceof Error && 'code' in err && err.code === '23505') {
-        return res.status(409).json({ message: "A reel with this Size, GSM, and Shade already exists." });
-      }
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.errors[0].message });
       }
       if (err instanceof Error) {
         return res.status(400).json({ message: err.message });
       }
-      throw err;
+      return res.status(500).json({ message: "Internal server error" });
     }
   });
 
@@ -93,129 +170,124 @@ export async function registerRoutes(
       if (err instanceof Error) {
         return res.status(400).json({ message: err.message });
       }
-      throw err;
+      return res.status(500).json({ message: "Internal server error" });
     }
   });
 
-  // === Transactions Routes ===
+  /* ===================== TRANSACTIONS ===================== */
+
   app.post(api.transactions.create.path, requireAuth, async (req, res) => {
     try {
       const input = api.transactions.create.input.parse(req.body);
-      
-      // Validation: Check if reel exists
-      const reel = await storage.getReel(input.reelId);
-      if (!reel) {
-        return res.status(404).json({ message: "Reel not found" });
-      }
-
-      // Validation: Prevent negative stock
-      if (input.type === 'usage') {
-        const bitReelKg = input.bitReelKg || 0;
-        const totalDeduction = input.quantity + bitReelKg;
-        
-        // Validation: usageKg + bitReelKg must not exceed available stock
-        if (reel.currentStock < totalDeduction) {
-           return res.status(400).json({ 
-             message: `Insufficient stock. Available: ${reel.currentStock.toFixed(2)} KG, Requested: ${totalDeduction.toFixed(2)} KG (Usage: ${input.quantity.toFixed(2)} + Bit Reel: ${bitReelKg.toFixed(2)} KG).` 
-           });
-        }
-      }
-
       const tx = await storage.createTransaction(input);
       res.status(201).json(tx);
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.errors[0].message });
       }
-      throw err;
+      if (err instanceof Error) {
+        return res.status(400).json({ message: err.message });
+      }
+      return res.status(500).json({ message: "Internal server error" });
     }
   });
 
-  // === Update Transaction ===
   app.put(api.transactions.update.path, requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const input = api.transactions.update.input.parse(req.body);
-
-      // Get current transaction to verify it exists
-      const currentTx = await storage.getTransaction(id);
-      if (!currentTx) {
-        return res.status(404).json({ message: "Transaction not found" });
-      }
-
-      // For usage transactions, validate stock constraint
-      if (currentTx.type === 'usage') {
-        const reel = await storage.getReel(currentTx.reelId);
-        if (!reel) {
-          return res.status(404).json({ message: "Reel not found" });
-        }
-
-        const bitReelKg = input.bitReelKg || 0;
-        const totalDeduction = input.quantity + bitReelKg;
-
-        // Calculate stock excluding this transaction
-        let stockWithoutThis = 0;
-        for (const tx of reel.transactions) {
-          if (tx.id === id) continue; // Skip current transaction
-          if (tx.type === 'inward' || tx.type === 'opening') {
-            stockWithoutThis += tx.quantity;
-          } else if (tx.type === 'usage') {
-            stockWithoutThis -= tx.quantity;
-            if (tx.bitReelKg) {
-              stockWithoutThis += tx.bitReelKg;
-            }
-          }
-        }
-
-        if (stockWithoutThis < totalDeduction) {
-          return res.status(400).json({
-            message: `Insufficient stock after removing this transaction. Available: ${stockWithoutThis.toFixed(2)} KG, Requested: ${totalDeduction.toFixed(2)} KG`,
-          });
-        }
-      }
-
       const tx = await storage.updateTransaction(id, input);
       res.status(200).json(tx);
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.errors[0].message });
       }
-      throw err;
+      if (err instanceof Error) {
+        return res.status(400).json({ message: err.message });
+      }
+      return res.status(500).json({ message: "Internal server error" });
     }
   });
 
-  // === Delete Transaction ===
   app.delete(api.transactions.delete.path, requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      
-      // Check if transaction exists
-      const tx = await storage.getTransaction(id);
-      if (!tx) {
-        return res.status(404).json({ message: "Transaction not found" });
-      }
-
       await storage.deleteTransaction(id);
       res.status(200).send("");
     } catch (err) {
-      throw err;
+      if (err instanceof Error) {
+        return res.status(400).json({ message: err.message });
+      }
+      return res.status(500).json({ message: "Internal server error" });
     }
   });
 
-  await seedDatabase();
+  /* ===================== BIT REEL UPDATE ===================== */
+app.put(api.reels.updateBitReel.path, requireAuth, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const input = api.reels.updateBitReel.input.parse(req.body);
 
+    const reel = await storage.getReel(id);
+    if (!reel) {
+      return res.status(404).json({ message: "Reel not found" });
+    }
+
+    await storage.updateBitReel(id, input.bitReelKg);
+
+    const updated = await storage.getReel(id);
+    res.status(200).json(updated);
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return res.status(400).json({ message: err.errors[0].message });
+    }
+    if (err instanceof Error) {
+      return res.status(400).json({ message: err.message });
+    }
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+/* ===================== CLEAR BIT REEL ===================== */
+
+// app.put("/api/reels/:id/clear-bit-reel", requireAuth, async (req, res) => {
+//   try {
+//     const id = parseInt(req.params.id);
+
+//     const reel = await storage.getReel(id);
+//     if (!reel) {
+//       return res.status(404).json({ message: "Reel not found" });
+//     }
+
+//     await storage.clearBitReel(id);
+
+//     return res.status(200).json({ message: "Bit reel cleared successfully" });
+//   } catch (err) {
+//     if (err instanceof Error) {
+//       return res.status(400).json({ message: err.message });
+//     }
+//     return res.status(500).json({ message: "Internal server error" });
+//   }
+// });
+
+
+
+  await seedDatabase();
   return httpServer;
 }
 
-// Seed function to create initial user and some data
+
+
+
+/* ===================== SEED ===================== */
+
 export async function seedDatabase() {
   const admin = await storage.getUserByUsername("admin");
   if (!admin) {
-    console.log("Seeding admin user...");
     const hashedPassword = await hashPassword("password123");
     await storage.createUser({
       username: "admin",
-      password: hashedPassword
+      password: hashedPassword,
     });
   }
 }

@@ -41,8 +41,14 @@ export default function LoginPage() {
   }, [user, setLocation]);
 
   const onSubmit = (data: LoginValues) => {
-    login(data);
-  };
+  login(data, {
+    onError: (error: any) => {
+      form.setError("root", {
+        message: error.message || "Invalid username or password",
+      });
+    },
+  });
+};
 
   if (isUserLoading) {
     return (
@@ -139,6 +145,16 @@ export default function LoginPage() {
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Sign In
               </Button>
+
+              <div className="text-right">
+                <a
+                  href="/forgot-password"
+                  className="text-sm text-slate-600 hover:underline"
+                 >
+                     Forgot password?
+              </a>
+             </div>
+
             </form>
           </CardContent>
         </Card>

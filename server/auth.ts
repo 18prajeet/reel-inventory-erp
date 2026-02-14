@@ -80,22 +80,22 @@ export function setupAuth(app: Express) {
     }
   });
 
-  app.post("/api/login", (req, res, next) => {
-    passport.authenticate("local", (err, user, info) => {
-      if (err) {
-        return next(err);
-      }
-      if (!user) {
-        return res.status(401).json({ message: info?.message || "Authentication failed" });
-      }
-      req.login(user, (err) => {
-        if (err) {
-          return next(err);
-        }
-        return res.json(user);
-      });
-    })(req, res, next);
-  });
+ app.post("/api/login", (req, res, next) => {
+  passport.authenticate("local", (err, user, info) => {
+    if (err) return next(err);
+    if (!user) {
+      return res.status(401).json({ message: info?.message || "Authentication failed" });
+    }
+
+    req.login(user, (err) => {
+      if (err) return next(err);
+
+      const { password, ...safeUser } = user;
+      return res.json(safeUser);
+    });
+  })(req, res, next);
+});
+
 
   app.post("/api/logout", (req, res, next) => {
     req.logout((err) => {
@@ -105,12 +105,14 @@ export function setupAuth(app: Express) {
   });
 
   app.get("/api/user", (req, res) => {
-    if (req.isAuthenticated()) {
-      res.json(req.user);
-    } else {
-      res.sendStatus(401);
-    }
-  });
+  if (req.isAuthenticated()) {
+    const { password, ...safeUser } = req.user as User;
+    res.json(safeUser);
+  } else {
+    res.sendStatus(401);
+  }
+});
+
 }
 
 export async function hashPassword(password: string) {

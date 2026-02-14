@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl, type InsertReel, type InsertTransaction } from "@shared/routes";
 import { z } from "zod";
 
+/* ===================== FETCH ===================== */
+
 export function useReels() {
   return useQuery({
     queryKey: [api.reels.list.path],
@@ -27,6 +29,8 @@ export function useReel(id: number) {
   });
 }
 
+/* ===================== CREATE ===================== */
+
 export function useCreateReel() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -37,12 +41,22 @@ export function useCreateReel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(validated),
       });
-      
+
       if (!res.ok) {
-        if (res.status === 409) throw new Error("A reel with this size, GSM, and shade already exists.");
-        if (res.status === 400) throw new Error("Invalid input data.");
-        throw new Error("Failed to create reel");
+        let message = "Failed to create reel";
+
+  try {
+    const data = await res.json();
+    if (data?.message) {
+      message = data.message; // ✅ USE BACKEND MESSAGE
+    }
+  } catch {
+    // ignore JSON parse error
+  }
+
+  throw new Error(message);
       }
+
       return api.reels.create.responses[201].parse(await res.json());
     },
     onSuccess: () => {
@@ -62,10 +76,21 @@ export function useCreateTransaction() {
         body: JSON.stringify(validated),
       });
 
-      if (!res.ok) {
-        if (res.status === 400) throw new Error("Invalid transaction data.");
-        throw new Error("Failed to record transaction");
-      }
+     if (!res.ok) {
+       let message = "Failed to record transaction";
+
+  try {
+    const err = await res.json();
+    if (err?.message) {
+      message = err.message;
+    }
+  } catch {
+    // ignore JSON parse errors
+  }
+
+  throw new Error(message);
+}
+
       return api.transactions.create.responses[201].parse(await res.json());
     },
     onSuccess: (_, variables) => {
@@ -75,24 +100,28 @@ export function useCreateTransaction() {
   });
 }
 
+/* ===================== UPDATE ===================== */
+
 export function useUpdateReel() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: z.infer<typeof api.reels.update.input> }) => {
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: number;
+      data: z.infer<typeof api.reels.update.input>;
+    }) => {
       const url = buildUrl(api.reels.update.path, { id });
       const validated = api.reels.update.input.parse(data);
+
       const res = await fetch(url, {
         method: api.reels.update.method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(validated),
       });
 
-      if (!res.ok) {
-        if (res.status === 409) throw new Error("A reel with this Size, GSM, and Shade already exists.");
-        if (res.status === 400) throw new Error("Invalid input data.");
-        if (res.status === 404) throw new Error("Reel not found");
-        throw new Error("Failed to update reel");
-      }
+      if (!res.ok) throw new Error("Failed to update reel");
       return api.reels.update.responses[200].parse(await res.json());
     },
     onSuccess: (_, { id }) => {
@@ -102,8 +131,75 @@ export function useUpdateReel() {
   });
 }
 
+/* 🔹 NEW: UPDATE BIT REEL ONLY */
+
+export function useUpdateBitReel() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      reelId,
+      data,
+    }: {
+      reelId: number;
+      data: { bitReelKg: number };
+    }) => {
+      const res = await fetch(`/api/reels/${reelId}/bit-reel`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message);
+      }
+
+      return res.json();
+    },
+
+    onSuccess: (_, { reelId }) => {
+      queryClient.invalidateQueries({
+        queryKey: [api.reels.get.path, reelId],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: [api.reels.list.path],
+      });
+    },
+  });
+}
+
+export function useClearBitReel() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (reelId: number) => {
+      const res = await fetch(`/api/reels/${reelId}/clear-bit-reel`, {
+        method: "PUT",
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message);
+      }
+    },
+    onSuccess: (_, reelId) => {
+      queryClient.invalidateQueries({ queryKey: [api.reels.get.path, reelId] });
+      queryClient.invalidateQueries({ queryKey: [api.reels.list.path] });
+    },
+  });
+}
+
+
+
+
+
+/* ===================== DELETE ===================== */
+
 export function useDeleteReel() {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: async (id: number) => {
       const url = buildUrl(api.reels.delete.path, { id });
@@ -112,36 +208,51 @@ export function useDeleteReel() {
       });
 
       if (!res.ok) {
-        if (res.status === 400) throw new Error("Cannot delete reel with existing transactions. Delete all transactions first.");
-        if (res.status === 404) throw new Error("Reel not found");
-        throw new Error("Failed to delete reel");
+        let message = "Failed to delete reel";
+
+        try {
+          const data = await res.json();
+          if (data?.message) {
+            message = data.message;
+          }
+        } catch {
+          // ignore JSON parse errors
+        }
+
+        throw new Error(message);
       }
     },
+
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.reels.list.path] });
     },
   });
 }
 
+
+
 export function useUpdateTransaction() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, data, reelId }: { id: number; data: z.infer<typeof api.transactions.update.input>; reelId: number }) => {
+    mutationFn: async ({
+      id,
+      data,
+      reelId,
+    }: {
+      id: number;
+      data: z.infer<typeof api.transactions.update.input>;
+      reelId: number;
+    }) => {
       const url = buildUrl(api.transactions.update.path, { id });
       const validated = api.transactions.update.input.parse(data);
+
       const res = await fetch(url, {
         method: api.transactions.update.method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(validated),
       });
 
-      if (!res.ok) {
-        if (res.status === 400) {
-          const error = await res.json();
-          throw new Error(error.message || "Failed to update transaction");
-        }
-        throw new Error("Failed to update transaction");
-      }
+      if (!res.ok) throw new Error("Failed to update transaction");
       return api.transactions.update.responses[200].parse(await res.json());
     },
     onSuccess: (_, { reelId }) => {
@@ -154,16 +265,16 @@ export function useUpdateTransaction() {
 export function useDeleteTransaction() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, reelId }: { id: number; reelId: number }) => {
+    mutationFn: async ({
+      id,
+      reelId,
+    }: {
+      id: number;
+      reelId: number;
+    }) => {
       const url = buildUrl(api.transactions.delete.path, { id });
-      const res = await fetch(url, {
-        method: api.transactions.delete.method,
-      });
-
-      if (!res.ok) {
-        if (res.status === 404) throw new Error("Transaction not found");
-        throw new Error("Failed to delete transaction");
-      }
+      const res = await fetch(url, { method: api.transactions.delete.method });
+      if (!res.ok) throw new Error("Failed to delete transaction");
     },
     onSuccess: (_, { reelId }) => {
       queryClient.invalidateQueries({ queryKey: [api.reels.get.path, reelId] });

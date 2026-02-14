@@ -1,34 +1,76 @@
-import { pgTable, text, serial, integer, timestamp, unique, doublePrecision } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  serial,
+  integer,
+  timestamp,
+  doublePrecision,
+  boolean,
+} from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
+
+/* -------------------- Users -------------------- */
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  email: text("email"),
+  resetToken: text("reset_token"),
+  resetTokenExpires: timestamp("reset_token_expires"),
 });
+
+/* -------------------- Reels -------------------- */
 
 export const reels = pgTable("reels", {
   id: serial("id").primaryKey(),
-  code: text("code").notNull().unique(), // Auto-generated: Size-GSM-Shade
-  size: integer("size").notNull(), // Width in mm/inches? Assuming generic unit
+
+  // Manual Reel Identifier (AA001, AA002...)
+  reelId: text("reel_id").notNull().unique(),
+
+  // Auto-generated code: Size-GSM-Shade
+  code: text("code").notNull(),
+
+  // Specifications
+  size: integer("size").notNull(), // CM
   gsm: integer("gsm").notNull(),
   shade: text("shade").notNull(),
+  weightKg: doublePrecision("weight_kg").notNull(),
+
+  
+
+  bf: integer("bf"),
+  supplier: text("supplier"),
+
+  // ✅ ERP-CORRECT: accumulated bit reel
+  bitReelKg: doublePrecision("bit_reel_kg").default(0),
+  bitReelManual: boolean("bit_reel_manual").default(false),
+  bitReelClearedAt: timestamp("bit_reel_cleared_at"),
   createdAt: timestamp("created_at").defaultNow(),
-}, (t) => ({
-  uniqueReelType: unique().on(t.size, t.gsm, t.shade),
-}));
+});
+
+/* -------------------- Transactions -------------------- */
 
 export const transactions = pgTable("transactions", {
   id: serial("id").primaryKey(),
-  reelId: integer("reel_id").notNull().references(() => reels.id),
-  type: text("type", { enum: ["inward", "usage", "opening"] }).notNull(),
-  quantity: doublePrecision("quantity").notNull(), // In KG
-  bitReelKg: doublePrecision("bit_reel_kg").default(0), // Leftover reel weight (KG) - for usage only
+
+  reelId: integer("reel_id")
+    .notNull()
+    .references(() => reels.id),
+
+  type: text("type", {
+    enum: ["opening", "inward", "usage"],
+  }).notNull(),
+
+  quantity: doublePrecision("quantity").notNull(), // KG only
+
   date: timestamp("date").defaultNow(),
   notes: text("notes"),
 });
+
+/* -------------------- Relations -------------------- */
 
 export const reelsRelations = relations(reels, ({ many }) => ({
   transactions: many(transactions),
@@ -41,23 +83,42 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
   }),
 }));
 
+/* -------------------- Zod Schemas -------------------- */
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
 });
 
-export const insertReelSchema = createInsertSchema(reels).omit({
-  id: true,
-  code: true, // Generated backend side
-  createdAt: true,
-});
+export const insertReelSchema = createInsertSchema(reels)
+  .omit({
+    id: true,
+    code: true,
+    createdAt: true,
+  })
+  .extend({
+    reelId: z
+      .string()
+      .min(1, "Reel ID is required")
+      .regex(/^[A-Za-z0-9_-]+$/, "Invalid Reel ID format"),
 
-export const insertTransactionSchema = createInsertSchema(transactions).omit({
-  id: true,
-  date: true,
-}).extend({
-  bitReelKg: z.number().min(0, "Bit reel weight must be non-negative").default(0),
-});
+       weightKg: z
+      .number()
+      .positive("Weight must be greater than 0"),
+  });
+
+export const insertTransactionSchema = createInsertSchema(transactions)
+  .omit({
+    id: true,
+    date: true,
+  })
+  .extend({
+    quantity: z
+      .number()
+      .positive("Quantity must be greater than zero"),
+  });
+
+/* -------------------- Types -------------------- */
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -68,7 +129,6 @@ export type InsertReel = z.infer<typeof insertReelSchema>;
 export type Transaction = typeof transactions.$inferSelect;
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 
-// API Types
 export type ReelWithStock = Reel & {
   currentStock: number;
 };

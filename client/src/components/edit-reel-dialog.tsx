@@ -1,4 +1,11 @@
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,10 +16,14 @@ import { api } from "@shared/routes";
 import { useUpdateReel } from "@/hooks/use-reels";
 import { useToast } from "@/hooks/use-toast";
 import { Reel } from "@shared/schema";
+import { useEffect } from "react";
+
+/* ---------------- SCHEMA ---------------- */
 
 const formSchema = api.reels.update.input.extend({
   size: z.coerce.number().int().positive("Size must be a positive number"),
   gsm: z.coerce.number().int().positive("GSM must be a positive number"),
+  // weightKg: z.coerce.number().min(0.01, "Weight must be greater than zero"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -22,6 +33,8 @@ interface EditReelDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
+
+/* ---------------- COMPONENT ---------------- */
 
 export function EditReelDialog({
   reel,
@@ -34,11 +47,28 @@ export function EditReelDialog({
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      size: 0,
+      gsm: 0,
+      shade: "",
+      bf: undefined,
+      supplier: "",
+      weightKg: reel.weightKg,
+    },
+  });
+
+  /* 🔑 THIS IS THE MOST IMPORTANT PART */
+  useEffect(() => {
+    if (!reel) return;
+
+    form.reset({
       size: reel.size,
       gsm: reel.gsm,
       shade: reel.shade,
-    },
-  });
+      bf: reel.bf ?? undefined,
+      supplier: reel.supplier ?? "",
+      weightKg: reel.weightKg ?? 0,
+    });
+  }, [reel, form]);
 
   const onSubmit = (data: FormValues) => {
     mutate(
@@ -46,10 +76,9 @@ export function EditReelDialog({
       {
         onSuccess: () => {
           onOpenChange(false);
-          form.reset();
           toast({
             title: "Reel Updated",
-            description: `Successfully updated reel specifications`,
+            description: "Reel specifications updated successfully.",
           });
         },
         onError: (error) => {
@@ -69,66 +98,56 @@ export function EditReelDialog({
         <DialogHeader>
           <DialogTitle>Edit Reel Specifications</DialogTitle>
           <DialogDescription>
-            Update the specifications for reel {reel.code}. The reel code will be auto-generated based on new values.
+            Update the specifications for reel <b>{reel.reelId}</b>
           </DialogDescription>
         </DialogHeader>
+
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+          {/* Size */}
           <div className="space-y-2">
-            <Label htmlFor="size">Size (inch)</Label>
+            <Label>Size (cm)</Label>
+            <Input type="number" {...form.register("size")} />
+          </div>
+
+          {/* GSM */}
+          <div className="space-y-2">
+            <Label>GSM</Label>
+            <Input type="number" {...form.register("gsm")} />
+          </div>
+
+          {/* Shade */}
+          <div className="space-y-2">
+            <Label>Shade</Label>
+            <Input {...form.register("shade")} />
+          </div>
+
+          {/* BF */}
+          <div className="space-y-2">
+            <Label>BF</Label>
+            <Input type="number" {...form.register("bf", { valueAsNumber: true })} />
+          </div>
+
+          {/* Weight */}
+          <div className="space-y-2">
+            <Label>Weight (KG)</Label>
             <Input
-              id="size"
               type="number"
-              step="1"
-              placeholder="23"
-              className="font-mono text-lg"
-              {...form.register("size")}
-              data-testid="input-reel-size"
+              step="0.01"
+              {...form.register("weightKg", { valueAsNumber: true })}
             />
-            {form.formState.errors.size && (
-              <p className="text-xs text-destructive">{form.formState.errors.size.message}</p>
-            )}
           </div>
 
+          {/* Supplier */}
           <div className="space-y-2">
-            <Label htmlFor="gsm">GSM</Label>
-            <Input
-              id="gsm"
-              type="number"
-              step="1"
-              placeholder="120"
-              className="font-mono text-lg"
-              {...form.register("gsm")}
-              data-testid="input-reel-gsm"
-            />
-            {form.formState.errors.gsm && (
-              <p className="text-xs text-destructive">{form.formState.errors.gsm.message}</p>
-            )}
+            <Label>Supplier</Label>
+            <Input {...form.register("supplier")} />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="shade">Shade</Label>
-            <Input
-              id="shade"
-              type="text"
-              placeholder="White"
-              className="font-mono text-lg"
-              {...form.register("shade")}
-              data-testid="input-reel-shade"
-            />
-            {form.formState.errors.shade && (
-              <p className="text-xs text-destructive">{form.formState.errors.shade.message}</p>
-            )}
-          </div>
-
-          <DialogFooter className="pt-4">
+          <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              disabled={isPending}
-              data-testid="button-update-reel"
-            >
+            <Button type="submit" disabled={isPending}>
               {isPending ? "Updating..." : "Update Reel"}
             </Button>
           </DialogFooter>
